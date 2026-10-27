@@ -1,0 +1,42 @@
+# --- Virtual environments ---
+venv/
+.venv/
+env/
+ENV/
+
+# --- Python bytecode / caches ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Numba compiled cache (created by @njit(cache=True)) ---
+*.nbi
+*.nbc
+
+# --- Datasets (large; re-downloadable from the UCR archive) ---
+data/
+*.zip
+*.arff
+*.ts
+
+# --- Generated outputs ---
+results/
+
+# --- Jupyter / Colab ---
+.ipynb_checkpoints/
+
+# --- Packaging / build ---
+build/
+dist/
+*.egg-info/
+
+# --- Testing / tooling caches ---
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
