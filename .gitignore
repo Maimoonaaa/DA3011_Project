@@ -19,8 +19,6 @@ data/
 *.arff
 *.ts
 
-# --- Generated outputs ---
-results/
 
 # --- Jupyter / Colab ---
 .ipynb_checkpoints/

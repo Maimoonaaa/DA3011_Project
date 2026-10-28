@@ -1,13 +1,4 @@
-#!/usr/bin/env python
-"""
-run_experiments.py - end-to-end pipeline for the soft-DTW divergence mini-replication.
 
-    python run_experiments.py sanity                         # verify theory (Prop. 2-4) + gradients
-    python run_experiments.py demo     --dataset GunPoint    # Fig. 2/3/4-like plots
-    python run_experiments.py classify --datasets GunPoint ECG200 CBF   # Tables 2/3-like results
-
-Use --dataset synthetic  (or --datasets synthetic) to run offline without downloading anything.
-"""
 import argparse
 import os
 import time
@@ -28,9 +19,7 @@ LABELS = {"euclid": "Euclidean", "dtw": "DTW", "sdtw": "SDTW", "sdtw_div": "SDTW
           "sharp": "Sharp", "sharp_div": "Sharp div"}
 
 
-# =========================================================================== #
 #  Data loading
-# =========================================================================== #
 def _znorm(X):
     mu = X.mean(1, keepdims=True)
     sg = X.std(1, keepdims=True)
@@ -99,9 +88,7 @@ def load_ucr(name, data_dir="data/UCR"):
     return (np.ascontiguousarray(_znorm(Xtr)), ytr, np.ascontiguousarray(_znorm(Xte)), yte)
 
 
-# =========================================================================== #
 #  sanity: numerical verification of the paper's claims
-# =========================================================================== #
 def cmd_sanity(args):
     rng = np.random.default_rng(0)
     print("\n[1] Gradient check (analytic vs central finite differences, gamma=1)")
@@ -150,16 +137,13 @@ def cmd_sanity(args):
         print(f"   {kind:10s} {np.linalg.norm(sd.value_and_grad(Y, Y, kind, 1.0)[1]):.2e}")
     print("   -> biased versions are NOT stationary at X=Y (not minimised there); divergences are.")
 
-
-# =========================================================================== #
 #  demo: Fig 2 (denoising), Fig 3 (barycenters), Fig 4 (interpolation)
-# =========================================================================== #
 def cmd_demo(args):
     os.makedirs(args.out, exist_ok=True)
     Xtr, ytr, _, _ = load_ucr(args.dataset, args.data_dir)
     rng = np.random.default_rng(args.seed)
 
-    # --- Fig. 2: argmin_X sdtw(C(X,Y)) with X=Y init moves away from Y; the divergence stays put
+    #Fig. 2: argmin_X sdtw(C(X,Y)) with X=Y init moves away from Y; the divergence stays put
     Y = Xtr[0]
     fig, ax = plt.subplots(1, 3, figsize=(13, 3))
     for a, (kind, g) in zip(ax, [("sdtw", 0.1), ("sdtw", 10.0), ("sdtw_div", 10.0)]):
@@ -172,7 +156,7 @@ def cmd_demo(args):
     plt.savefig(f"{args.out}/fig2_denoising_{args.dataset}.png", dpi=130)
     plt.close()
 
-    # --- Fig. 3: barycenters of 10 series of one class
+    #Fig. 3: barycenters of 10 series of one class
     idx = np.where(ytr == ytr[0])[0]
     idx = rng.permutation(idx)[:10]
     Ys = Xtr[idx]
@@ -193,7 +177,7 @@ def cmd_demo(args):
     plt.savefig(f"{args.out}/fig3_barycenters_{args.dataset}.png", dpi=130)
     plt.close()
 
-    # --- Fig. 4: interpolation  w1=pi, w2=1-pi
+    #Fig. 4: interpolation  w1=pi, w2=1-pi
     Y1, Y2 = Xtr[idx[0]], Xtr[idx[1]]
     fig, axes = plt.subplots(2, 3, figsize=(12, 5), sharey=True)
     for a, kind in zip(axes.ravel(), ["euclid", "dtw", "sdtw", "sharp", "sdtw_div", "sharp_div"]):
@@ -210,9 +194,7 @@ def cmd_demo(args):
     print(f"Figures saved in {args.out}/")
 
 
-# =========================================================================== #
 #  classify: 1-NN and nearest-centroid  (Tables 2/3 of the paper, smaller scale)
-# =========================================================================== #
 def run_dataset(name, args):
     Xtr, ytr, Xte, yte = load_ucr(name, args.data_dir)
     rng = np.random.default_rng(args.seed)
@@ -225,7 +207,7 @@ def run_dataset(name, args):
     n = len(Xtr)
     print(f"\n=== {name}: train={n} test={len(Xte)} length={Xtr.shape[1]} classes={len(np.unique(ytr))}")
 
-    # --- cached raw (uncorrected) matrices, shared by biased and corrected variants
+    #cached raw (uncorrected) matrices, shared by biased and corrected variants
     cache = {}
 
     def tr(base, g):
@@ -242,7 +224,7 @@ def run_dataset(name, args):
     def correct(R, sa, sb, kind):
         return R - 0.5 * sa[:, None] - 0.5 * sb[None, :] if kind.endswith("_div") else R
 
-    # --- gamma selection by repeated 2/3 - 1/3 hold-out (as in the paper)
+    #gamma selection by repeated 2/3 - 1/3 hold-out (as in the paper)
     n_fit = int(round(2 * n / 3))
     splits = [rng.permutation(n) for _ in range(args.cv_repeats)]
     gam = {"euclid": None, "dtw": None}
@@ -262,7 +244,7 @@ def run_dataset(name, args):
         gam[kind] = best_g
 
     rows = []
-    # --- 1-NN
+    #1-NN
     acc_nn = {}
     for kind in METHODS:
         t0 = time.time()
@@ -274,7 +256,7 @@ def run_dataset(name, args):
         print(f"  1-NN  {LABELS[kind]:10s} acc={acc_nn[kind]:.4f}  gamma={gam[kind]}  ({time.time() - t0:.1f}s)")
     rows.append({"dataset": name, "task": "1nn", **acc_nn, **{f"gamma_{k}": v for k, v in gam.items()}})
 
-    # --- nearest centroid
+    #nearest centroid
     if args.centroid:
         classes = np.unique(ytr)
         acc_nc = {}
@@ -338,7 +320,6 @@ def cmd_classify(args):
     print(f"\nSaved results to {args.out}/")
 
 
-# =========================================================================== #
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)

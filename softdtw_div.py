@@ -1,8 +1,4 @@
 """
-softdtw_div.py
-==============
-Core implementation of  "Differentiable Divergences Between Time Series"
-(Blondel, Mensch, Vert - AISTATS 2021)  with numba (CPU).
 
 Implemented discrepancies (squared Euclidean ground cost, eq. (1) of the paper):
 
@@ -14,7 +10,6 @@ Implemented discrepancies (squared Euclidean ground cost, eq. (1) of the paper):
     sharp_div  : sharp divergence S_gamma(X,Y)  (same correction terms)
 
 Conventions
------------
 * A time series is a float64 array of shape (T, d).  A dataset is (N, T, d).
 * DP tables use 1-based indexing with padding (index 0 = border), like the paper's Algorithms 1-4.
 * P[i,j,k] = transition probabilities of the random walk on the DAG:
@@ -28,13 +23,11 @@ KINDS = ("euclid", "dtw", "sdtw", "sdtw_div", "sharp", "sharp_div")
 _CODE = {"euclid": 0, "dtw": 1, "sdtw": 2, "sharp": 3}
 
 
-# --------------------------------------------------------------------------- #
 #  Ground cost
-# --------------------------------------------------------------------------- #
 @njit(cache=True)
 def _cost(X, Y):
-    """[C]_{ij} = 1/2 ||x_i - y_j||^2   (eq. 1). Computed by explicit differences so that
-    C(X,X) has an exactly-zero diagonal (assumption A.2)."""
+    """[C]_{ij} = 1/2 ||x_i - y_j||^2    Computed by explicit differences so that
+    C(X,X) has an exactly-zero diagonal"""
     m, n, d = X.shape[0], Y.shape[0], X.shape[1]
     C = np.empty((m, n))
     for i in range(m):
@@ -47,9 +40,7 @@ def _cost(X, Y):
     return C
 
 
-# --------------------------------------------------------------------------- #
 #  Algorithm 1: soft-DTW value + transition probabilities
-# --------------------------------------------------------------------------- #
 @njit(cache=True)
 def _sdtw_forward(C, gamma):
     m, n = C.shape
@@ -126,9 +117,7 @@ def _hvp(P, E, Vd, gamma):
     return Ed[1:m + 1, 1:n + 1].copy()
 
 
-# --------------------------------------------------------------------------- #
 #  Hard DTW (value + optimal alignment by backtracking)
-# --------------------------------------------------------------------------- #
 @njit(cache=True)
 def _dtw_fwd(C):
     m, n = C.shape
@@ -163,9 +152,7 @@ def _dtw_alignment(V):
     return A
 
 
-# --------------------------------------------------------------------------- #
 #  Value of the "base" discrepancy for a cost matrix (used by pairwise kernels)
-# --------------------------------------------------------------------------- #
 @njit(cache=True)
 def _pair_value(C, code, gamma):
     m, n = C.shape
@@ -202,9 +189,7 @@ def _self_terms(A, code, gamma):
     return out
 
 
-# --------------------------------------------------------------------------- #
 #  Public API: pairwise matrices
-# --------------------------------------------------------------------------- #
 def base_of(kind):
     return kind[:-4] if kind.endswith("_div") else kind
 
@@ -229,10 +214,7 @@ def discrepancy_matrix(A, B, kind, gamma=1.0, selfA=None, selfB=None):
         D = D - 0.5 * sa[:, None] - 0.5 * sb[None, :]
     return D
 
-
-# --------------------------------------------------------------------------- #
 #  Value + gradient w.r.t. X  (for barycenters / interpolation)
-# --------------------------------------------------------------------------- #
 def _value_and_cost_grad(C, base, gamma):
     """Returns (value, dvalue/dC)."""
     if base == "dtw":
@@ -274,9 +256,7 @@ def value_and_grad(X, Y, kind, gamma=1.0, with_const=True):
     return v, g
 
 
-# --------------------------------------------------------------------------- #
 #  Barycenter (Frechet mean, eq. 8) / interpolation
-# --------------------------------------------------------------------------- #
 def barycenter(Ys, kind, gamma=1.0, weights=None, init=None, maxiter=100):
     """argmin_X sum_i w_i kind(X, Y_i) with L-BFGS-B.  Ys: (k, T, d), equal length.
     Init follows the paper: Euclidean mean for biased kinds; for *_div kinds, the solution
